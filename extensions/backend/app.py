@@ -9,7 +9,6 @@ from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
-from langdetect import detect, LangDetectException
 
 # Thêm project root vào path
 project_root = Path(__file__).parent.parent.parent
@@ -27,7 +26,6 @@ CORS(app)  # Bật CORS cho extension
 model_loader = None
 lime_explainer = None
 shap_explainer = None
-shap_explainer_vietnamese = None
 models_loaded = False
 
 # Model paths
@@ -36,7 +34,7 @@ MODELS_BASE_PATH = os.path.join(project_root, "output", "models")
 
 def load_models():
     """Load tất cả models khi server start"""
-    global model_loader, lime_explainer, shap_explainer, shap_explainer_vietnamese, models_loaded
+    global model_loader, lime_explainer, shap_explainer, models_loaded
     
     if models_loaded:
         return
@@ -55,11 +53,11 @@ def load_models():
         model_loader = ModelLoader(base_path=MODELS_BASE_PATH)
         models = model_loader.load_all_models()
         
-        print(f"\n✓ Đã load {len(models)} models: {', '.join(models.keys())}")
+        print(f"\nĐã load {len(models)} models: {', '.join(models.keys())}")
         
         # Khởi tạo LIME explainer cho Keras models
         lime_explainer = LIMEExplainer(model_loader)
-        print("✓ LIME explainer đã được khởi tạo")
+        print("LIME explainer đã được khởi tạo")
         
         # Khởi tạo SHAP explainer cho BERT (English)
         if "BERT" in models:
@@ -79,24 +77,6 @@ def load_models():
         else:
             shap_explainer = None
         
-        # Khởi tạo SHAP explainer cho BERT_Vietnamese
-        if "BERT_Vietnamese" in models:
-            bert_vietnamese_path = os.path.join(MODELS_BASE_PATH, "BERT_Vietnamese", "phobert_vietnamese_email_model")
-            if os.path.exists(bert_vietnamese_path):
-                try:
-                    shap_explainer_vietnamese = SHAPExplainer(bert_vietnamese_path)
-                    print("✓ SHAP explainer đã được khởi tạo cho BERT_Vietnamese")
-                    # Warm-up PhoBERT luôn khi server start để tránh chờ lâu lần đầu
-                    shap_explainer_vietnamese.warmup()
-                except Exception as e:
-                    print(f"⚠ Không thể khởi tạo SHAP explainer cho BERT_Vietnamese: {e}")
-                    shap_explainer_vietnamese = None
-            else:
-                print(f"⚠ Không tìm thấy BERT_Vietnamese model tại {bert_vietnamese_path}")
-                shap_explainer_vietnamese = None
-        else:
-            shap_explainer_vietnamese = None
-        
         models_loaded = True
         
         print("="*80)
@@ -109,57 +89,6 @@ def load_models():
         raise
 
 
-def detect_language(text: str) -> str:
-    """
-    Phát hiện ngôn ngữ của email text
-    
-    Args:
-        text: Nội dung email cần phát hiện ngôn ngữ
-        
-    Returns:
-        'vi' nếu là tiếng Việt, 'en' nếu là tiếng Anh, 'unknown' nếu không xác định được
-    """
-    if not text or len(text.strip()) == 0:
-        return 'unknown'
-    
-    try:
-        # Sử dụng langdetect để phát hiện ngôn ngữ
-        # Lấy sample đầu tiên 500 ký tự để tăng tốc độ
-        sample_text = text[:500] if len(text) > 500 else text
-        detected_lang = detect(sample_text)
-        
-        # Chuyển đổi mã ngôn ngữ về định dạng chuẩn
-        if detected_lang == 'vi':
-            return 'vi'
-        elif detected_lang == 'en':
-            return 'en'
-        else:
-            # Nếu không phải vi hoặc en, kiểm tra thêm bằng cách đếm ký tự đặc biệt tiếng Việt
-            vietnamese_chars = set('àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ')
-            text_lower = text.lower()
-            vietnamese_char_count = sum(1 for char in text_lower if char in vietnamese_chars)
-            
-            # Nếu có nhiều ký tự tiếng Việt, coi như tiếng Việt
-            if vietnamese_char_count > 5:
-                return 'vi'
-            else:
-                return 'en'  # Mặc định là tiếng Anh nếu không xác định được
-                
-    except LangDetectException:
-        # Nếu langdetect không phát hiện được, kiểm tra ký tự tiếng Việt
-        vietnamese_chars = set('àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ')
-        text_lower = text.lower()
-        vietnamese_char_count = sum(1 for char in text_lower if char in vietnamese_chars)
-        
-        if vietnamese_char_count > 5:
-            return 'vi'
-        else:
-            return 'en'
-    except Exception as e:
-        print(f"Lỗi khi phát hiện ngôn ngữ: {e}")
-        return 'unknown'
-
-
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Endpoint kiểm tra trạng thái server"""
@@ -170,48 +99,10 @@ def health_check():
     })
 
 
-@app.route('/api/detect-language', methods=['POST'])
-def detect_language_endpoint():
-    """
-    API endpoint để phát hiện ngôn ngữ của email
-    
-    Request body:
-    {
-        "email_text": "subject + body của email"
-    }
-    
-    Response:
-    {
-        "language": "vi" | "en" | "unknown"
-    }
-    """
-    try:
-        data = request.get_json()
-        email_text = data.get('email_text', '').strip()
-        
-        if not email_text:
-            return jsonify({
-                'error': 'email_text không được để trống'
-            }), 400
-        
-        language = detect_language(email_text)
-        
-        return jsonify({
-            'language': language
-        })
-        
-    except Exception as e:
-        print(f"Lỗi trong /api/detect-language: {e}")
-        traceback.print_exc()
-        return jsonify({
-            'error': f'Lỗi khi phát hiện ngôn ngữ: {str(e)}'
-        }), 500
-
-
 @app.route('/api/predict', methods=['POST'])
 def predict():
     """
-    API endpoint để dự đoán email với models dựa trên ngôn ngữ
+    API endpoint để dự đoán email với tất cả models đang được load
     
     Request body:
     {
@@ -220,17 +111,13 @@ def predict():
     
     Response:
     {
-        "language": "vi" | "en",
+        "language": "unknown",
         "predictions": {
             "GRU": {"label": "phishing", "probability": 0.95},
             "CNN": {"label": "benign", "probability": 0.87},
             ...
         }
     }
-    
-    Logic:
-    - Nếu email là tiếng Việt: chỉ dùng BERT_Vietnamese
-    - Nếu email là tiếng Anh: dùng BERT, BiLSTM, CNN, GRU, Hybrid_CNN_BiLSTM
     """
     if not models_loaded:
         return jsonify({
@@ -245,20 +132,10 @@ def predict():
             return jsonify({
                 'error': 'email_text không được để trống'
             }), 400
-        
-        # Phát hiện ngôn ngữ
-        language = detect_language(email_text)
-        print(f"🌐 Phát hiện ngôn ngữ: {language}")
-        
-        # Chọn models dựa trên ngôn ngữ
-        if language == 'vi':
-            # Tiếng Việt: chỉ dùng BERT_Vietnamese
-            selected_models = ['BERT_Vietnamese']
-            print(f"📌 Chọn models cho tiếng Việt: {selected_models}")
-        else:
-            # Tiếng Anh: dùng 5 models
-            selected_models = ['BERT', 'BiLSTM', 'CNN', 'GRU', 'Hybrid_CNN_BiLSTM']
-            print(f"📌 Chọn models cho tiếng Anh: {selected_models}")
+
+        # Không tự phát hiện ngôn ngữ; chạy tất cả models đang có
+        selected_models = list(model_loader.models.keys())
+        print(f"📌 Chọn models: {selected_models}")
         
         # Dự đoán với các models đã chọn
         predictions = {}
@@ -283,7 +160,7 @@ def predict():
                 }
         
         return jsonify({
-            'language': language,
+            'language': 'unknown',
             'predictions': predictions,
             'email_text': email_text[:100] + '...' if len(email_text) > 100 else email_text
         })
@@ -303,7 +180,7 @@ def explain():
     
     Request body:
     {
-        "model_name": "GRU" | "CNN" | "BiLSTM" | "Hybrid_CNN_BiLSTM" | "BERT" | "BERT_Vietnamese",
+        "model_name": "GRU" | "CNN" | "BiLSTM" | "Hybrid_CNN_BiLSTM" | "BERT",
         "email_text": "subject + body của email"
     }
     
@@ -369,38 +246,6 @@ def explain():
                 })
             except Exception as e:
                 print(f"Lỗi khi tạo SHAP explanation: {e}")
-                traceback.print_exc()
-                return jsonify({
-                    'error': f'Lỗi khi tạo SHAP explanation: {str(e)}'
-                }), 500
-        elif model_name == "BERT_Vietnamese":
-            # BERT_Vietnamese sử dụng SHAP để giải thích
-            if shap_explainer_vietnamese is None:
-                return jsonify({
-                    'error': 'SHAP explainer chưa được khởi tạo cho BERT_Vietnamese'
-                }), 503
-            
-            try:
-                if mode == 'full':
-                    result = shap_explainer_vietnamese.explain_with_shap(
-                        email_text,
-                        max_features=15
-                    )
-                else:
-                    result = shap_explainer_vietnamese.explain_with_shap_fast(
-                        email_text,
-                        max_features=15
-                    )
-                
-                return jsonify({
-                    'model_name': model_name,
-                    'prediction_label': result['prediction_label'],
-                    'prediction_probability': result['prediction_probability'],
-                    'important_tokens': result['important_tokens'],
-                    'method': 'SHAP'
-                })
-            except Exception as e:
-                print(f"Lỗi khi tạo SHAP explanation cho BERT_Vietnamese: {e}")
                 traceback.print_exc()
                 return jsonify({
                     'error': f'Lỗi khi tạo SHAP explanation: {str(e)}'

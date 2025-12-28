@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Email Phishing Detection",
   "version": "1.0.0",
-  "description": "Phát hiện email phishing bằng Deep Learning với 6 mô hình: GRU, CNN, BiLSTM, CNN-BiLSTM, BERT và phoBERT",
+  "description": "Phát hiện email phishing bằng Deep Learning với các mô hình: GRU, CNN, BiLSTM, CNN-BiLSTM, BERT",
   "permissions": [
     "storage",
     "activeTab",

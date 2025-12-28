@@ -105,22 +105,6 @@ async function handleAnalyze() {
     try {
         const emailText = `${currentEmail.subject || ''} ${currentEmail.body || ''}`.trim();
 
-        // ---- Detect language
-        let detectedLanguage = 'unknown';
-        try {
-            const langResp = await fetch(`${API_BASE_URL}/api/detect-language`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email_text: emailText })
-            });
-            if (langResp.ok) {
-                const langData = await langResp.json();
-                detectedLanguage = langData.language || 'unknown';
-            }
-        } catch (e) {
-            console.warn('Detect language failed:', e);
-        }
-
         // ---- Predict
         const resp = await fetch(`${API_BASE_URL}/api/predict`, {
             method: 'POST',
@@ -135,16 +119,14 @@ async function handleAnalyze() {
         const data = await resp.json();
         currentResults = data;
 
-        displayResults(data, detectedLanguage);
+        displayResults(data, 'unknown');
 
-        // ---- Highlight theo BERT / PhoBERT
-        const hasBert =
-            (detectedLanguage === 'vi' && data.predictions?.BERT_Vietnamese) ||
-            (detectedLanguage !== 'vi' && data.predictions?.BERT);
+        // ---- Highlight theo BERT (nếu có)
+        const hasBert = !!data.predictions?.BERT;
 
         if (hasBert) {
             try {
-                await highlightPreviewWithBert(emailText, detectedLanguage);
+                await highlightPreviewWithBert(emailText);
             } catch (e) {
                 console.warn('Highlight BERT failed:', e);
             }
@@ -418,7 +400,7 @@ function highlightEmailText(rawText, tokens) {
 }
 
 async function highlightPreviewWithBert(emailText, detectedLanguage) {
-    const modelName = detectedLanguage === 'vi' ? 'BERT_Vietnamese' : 'BERT';
+    const modelName = 'BERT';
 
     // Highlight luôn dùng chế độ nhanh để đảm bảo phản hồi tốt
     const data = await fetchExplanation(modelName, emailText, 'quick');
