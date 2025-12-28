@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Phishing Detection</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🛡️ Email Phishing Detection</h1>
+            <p class="subtitle">Ứng dụng mô hình Deep Learning trong việc phát hiện email có nội dung giả mạo</p>
+        </header>
+
+        <!-- Email Preview -->
+        <div class="email-preview" id="emailPreview">
+            <div class="preview-header">
+                <span class="preview-label">📧 Nội dung email đang xem hiện tại:</span>
+            </div>
+            <div class="preview-content">
+                <div class="preview-subject" id="previewSubject">Chưa có email nào được chọn</div>
+                <div class="preview-body" id="previewBody">Mở một email trong Gmail hoặc Outlook để bắt đầu phân tích</div>
+            </div>
+        </div>
+
+        <!-- Analyze Button -->
+        <div class="analyze-section">
+            <button id="analyzeBtn" class="analyze-btn" disabled>
+                <span class="btn-icon">🔍</span>
+                <span class="btn-text">Phân tích Email</span>
+            </button>
+            <label class="xai-mode-toggle">
+                <input type="checkbox" id="xaiDetailMode">
+                <span>Chế độ XAI chi tiết (chậm hơn)</span>
+            </label>
+            <div class="loading" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Đang phân tích...</span>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <!-- Summary -->
+            <div class="summary-card" id="summaryCard">
+                <div class="summary-header">
+                    <h3>📊 Tổng hợp</h3>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-item">
+                        <span class="summary-value" id="summaryResult">-</span>
+                        <span class="summary-models" id="summaryModels">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Results -->
+            <div class="models-container" id="modelsContainer">
+                <!-- Model cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <!-- XAI Modal -->
+    <div class="modal" id="xaiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Giải thích dự đoán</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- XAI content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
+

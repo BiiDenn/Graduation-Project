@@ -1,0 +1,40 @@
+# Model weights / large binaries
+output/explanations/
+output/models/BERT/bert_base_email_model/
+output/models/BERT/checkpoints/
+output/models/BERT/logs/
+output/models/BiLSTM/checkpoints/
+output/models/BiLSTM/logs/
+output/models/BiLSTM/bilstm_model.h5
+output/models/CNN/checkpoints/
+output/models/CNN/logs/
+output/models/CNN/cnn_model.h5
+output/models/GRU/checkpoints/
+output/models/GRU/logs/
+output/models/GRU/gru_model.h5
+output/models/Hybrid_CNN_BiLSTM/checkpoints/
+output/models/Hybrid_CNN_BiLSTM/logs/
+output/models/Hybrid_CNN_BiLSTM/hybrid_cnn_bilstm_model.h5
+
+# Large model files
+*.safetensors
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.pkl
+*.pickle
+
+# Embedding metadata (large TSV files)
+*_embedding_metadata.tsv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Archives (if not using LFS)
+# *.rar
+# *.zip
+# *.7z
