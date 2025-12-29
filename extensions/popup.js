@@ -288,14 +288,14 @@ function displayXAIContent(data, prediction) {
     if (labelUpper === 'PHISHING') {
         summaryText = `
             Mô hình đánh giá email này là <strong class="xai-prediction-label phishing">PHISHING (${confidence}%)</strong>
-            vì xuất hiện nhiều từ/cụm từ mang tính rủi ro như ${positiveTop || '...'}
-            và thiếu các từ thể hiện ngữ cảnh bình thường như ${negativeTop || '...'}.
+            vì xuất hiện ${positiveTokens.length} từ/cụm từ mang tính rủi ro như ${positiveTop || '...'}
+            ${negativeTokens.length > 0 ? `và chỉ có ${negativeTokens.length} từ thể hiện ngữ cảnh bình thường như ${negativeTop || '...'}.` : '.'}
         `;
     } else {
         summaryText = `
             Mô hình đánh giá email này là <strong class="xai-prediction-label benign">BENIGN (${confidence}%)</strong>
-            vì xuất hiện nhiều từ liên quan đến ngữ cảnh công việc/bình thường như ${negativeTop || '...'}
-            và ít dấu hiệu rủi ro từ các từ như ${positiveTop || '...'}.
+            vì xuất hiện ${negativeTokens.length} từ liên quan đến ngữ cảnh công việc/bình thường như ${negativeTop || '...'}
+            ${positiveTokens.length > 0 ? `và chỉ có ${positiveTokens.length} dấu hiệu rủi ro từ các từ như ${positiveTop || '...'}.` : '.'}
         `;
     }
 

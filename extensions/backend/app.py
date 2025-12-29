@@ -260,10 +260,11 @@ def explain():
             try:
                 # Quick mode dùng ít samples, full mode dùng nhiều samples hơn
                 num_samples = 1000 if mode != 'full' else 3000
+                # Tăng num_features để đảm bảo có đủ từ sau khi lọc (cần 10+5=15, nhưng lọc mất ~30-50%)
                 result = lime_explainer.explain_with_lime(
                     model_name,
                     email_text,
-                    num_features=15,
+                    num_features=25, 
                     num_samples=num_samples
                 )
                 

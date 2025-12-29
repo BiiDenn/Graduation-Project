@@ -166,10 +166,11 @@ class XAIPipeline:
             elif run_lime:
                 try:
                     assert self.lime_explainer is not None
+                    # Tăng num_features để đảm bảo có đủ từ sau khi lọc stopwords
                     lime_result = self.lime_explainer.explain_with_lime(
                         model_name,
                         email_text,
-                        num_features=15,
+                        num_features=25,  # Tăng từ 15 lên 25 để đảm bảo đủ từ
                     )
                     results["lime_explanations"][model_name] = lime_result
 
@@ -179,14 +180,41 @@ class XAIPipeline:
                             lime_result,
                         )
 
-                    print("  Top 5 từ quan trọng (LIME):")
-                    for i, token_info in enumerate(
-                        lime_result["important_tokens"][:5], 1
-                    ):
-                        print(
-                            f"    {i}. {token_info['token']:20s} "
-                            f"{token_info['weight']:+.4f}"
-                        )
+                    # Hiển thị tokens theo logic mới: ưu tiên nhóm chính
+                    tokens = lime_result["important_tokens"]
+                    positive_tokens = [t for t in tokens if t["weight"] > 0]
+                    negative_tokens = [t for t in tokens if t["weight"] < 0]
+                    
+                    prediction_label = lime_result.get("prediction_label", "").lower()
+                    
+                    if prediction_label == "phishing":
+                        print(f"  Top {len(positive_tokens)} từ làm tăng khả năng PHISHING:")
+                        for i, token_info in enumerate(positive_tokens, 1):
+                            print(
+                                f"    {i}. {token_info['token']:20s} "
+                                f"{token_info['weight']:+.4f}"
+                            )
+                        if negative_tokens:
+                            print(f"  Top {len(negative_tokens)} từ làm tăng khả năng BENIGN:")
+                            for i, token_info in enumerate(negative_tokens, 1):
+                                print(
+                                    f"    {i}. {token_info['token']:20s} "
+                                    f"{token_info['weight']:+.4f}"
+                                )
+                    else:  # benign
+                        print(f"  Top {len(negative_tokens)} từ làm tăng khả năng BENIGN:")
+                        for i, token_info in enumerate(negative_tokens, 1):
+                            print(
+                                f"    {i}. {token_info['token']:20s} "
+                                f"{token_info['weight']:+.4f}"
+                            )
+                        if positive_tokens:
+                            print(f"  Top {len(positive_tokens)} từ làm tăng khả năng PHISHING:")
+                            for i, token_info in enumerate(positive_tokens, 1):
+                                print(
+                                    f"    {i}. {token_info['token']:20s} "
+                                    f"{token_info['weight']:+.4f}"
+                                )
 
                 except Exception as exc:
                     print(f"  ✗ Lỗi khi chạy LIME: {exc}")

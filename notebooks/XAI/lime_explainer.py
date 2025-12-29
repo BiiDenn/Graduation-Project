@@ -100,10 +100,15 @@ class LIMEExplainer:
 
         predict_fn = self._create_predict_fn_keras(model_info["model"], model_name)
 
+        # Tăng num_features để đảm bảo sau khi lọc stopwords vẫn còn đủ từ
+        # Cần ít nhất 10 từ cho nhóm chính + 5 từ cho nhóm phụ = 15 từ
+        # Nhưng sau khi lọc stopwords có thể mất 30-50%, nên yêu cầu nhiều hơn
+        expanded_num_features = max(num_features * 2, 25)  # Ít nhất 25 features
+        
         explanation = self.explainer.explain_instance(
             email_text,
             predict_fn,
-            num_features=num_features,
+            num_features=expanded_num_features,
             num_samples=num_samples,
         )
 
@@ -177,13 +182,41 @@ class LIMEExplainer:
                 }
             )
 
-        important_tokens.sort(key=lambda x: abs(x["weight"]), reverse=True)
+        # Tách tokens thành 2 nhóm: positive (phishing) và negative (benign)
+        positive_tokens = [t for t in important_tokens if t["weight"] > 0]
+        negative_tokens = [t for t in important_tokens if t["weight"] < 0]
+        
+        # Sắp xếp mỗi nhóm theo absolute weight (giảm dần)
+        positive_tokens.sort(key=lambda x: abs(x["weight"]), reverse=True)
+        negative_tokens.sort(key=lambda x: abs(x["weight"]), reverse=True)
+        
+        # Dựa vào prediction label để quyết định số lượng từ hiển thị
+        # Nếu dự đoán là phishing: ưu tiên 10 từ phishing, chỉ 5 từ benign
+        # Nếu dự đoán là benign: ưu tiên 10 từ benign, chỉ 5 từ phishing
+        if label.lower() == "phishing":
+            # Lấy 10 từ positive (phishing) và 5 từ negative (benign)
+            selected_positive = positive_tokens[:10]
+            selected_negative = negative_tokens[:5]
+        else:  # benign
+            # Lấy 10 từ negative (benign) và 5 từ positive (phishing)
+            selected_positive = positive_tokens[:5]
+            selected_negative = negative_tokens[:10]
+        
+        # Kết hợp lại và sắp xếp để hiển thị (ưu tiên hiển thị nhóm chính trước)
+        # Nhưng vẫn giữ thứ tự theo absolute weight trong mỗi nhóm
+        final_tokens = []
+        if label.lower() == "phishing":
+            # Hiển thị phishing tokens trước, sau đó benign tokens
+            final_tokens = selected_positive + selected_negative
+        else:  # benign
+            # Hiển thị benign tokens trước, sau đó phishing tokens
+            final_tokens = selected_negative + selected_positive
 
         return {
             "email": email_text,
             "prediction_label": label,
             "prediction_probability": probability,
-            "important_tokens": important_tokens[:num_features],
+            "important_tokens": final_tokens,
             "explanation_object": explanation,
         }
 
